@@ -1,4 +1,4 @@
-name: Pipeline
+name: CI/CD Pipeline
 
 on:
   pull_request:
@@ -9,17 +9,11 @@ on:
     branches:
       - 'development'
       - 'testing'
+  workflow_dispatch:
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: 'ap-southeast-2'
-      # These IDs should be stored as secrets in GitHub Environments
-      DEV_CLOUDFRONT_ID: ${{ secrets.DEV_CLOUDFRONT_ID }}
-      SIT_CLOUDFRONT_ID: ${{ secrets.SIT_CLOUDFRONT_ID }}
 
     steps:
       - name: Checkout repository
@@ -34,11 +28,33 @@ jobs:
         run: npm install
 
       - name: Build production application
-        if: github.event_name == 'push'
         run: npm run build
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifact
+          path: dist/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: 'ap-southeast-2'
+      DEV_CLOUDFRONT_ID: ${{ secrets.DEV_CLOUDFRONT_ID }}
+      SIT_CLOUDFRONT_ID: ${{ secrets.SIT_CLOUDFRONT_ID }}
+      
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifact
+          path: dist/
+
       - name: Configure AWS credentials
-        if: github.event_name == 'push'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
@@ -48,11 +64,11 @@ jobs:
       - name: Deploy to Dev
         if: github.ref == 'refs/heads/development'
         run: |
-          aws s3 sync ./build/ s3://todolistdev --delete
+          aws s3 sync ./dist/ s3://todolist-dev --delete
           aws cloudfront create-invalidation --distribution-id ${{ env.DEV_CLOUDFRONT_ID }} --paths "/*"
 
       - name: Deploy to SIT
         if: github.ref == 'refs/heads/testing'
         run: |
-          aws s3 sync ./build/ s3://todolistsit --delete
+          aws s3 sync ./dist/ s3://todolist-sit --delete
           aws cloudfront create-invalidation --distribution-id ${{ env.SIT_CLOUDFRONT_ID }} --paths "/*"
