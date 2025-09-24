@@ -1,0 +1,58 @@
+name: Pipeline
+
+on:
+  pull_request:
+    branches:
+      - 'development'
+      - 'testing'
+  push:
+    branches:
+      - 'development'
+      - 'testing'
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: 'ap-southeast-2'
+      # These IDs should be stored as secrets in GitHub Environments
+      DEV_CLOUDFRONT_ID: ${{ secrets.DEV_CLOUDFRONT_ID }}
+      SIT_CLOUDFRONT_ID: ${{ secrets.SIT_CLOUDFRONT_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build production application
+        if: github.event_name == 'push'
+        run: npm run build
+
+      - name: Configure AWS credentials
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to Dev
+        if: github.ref == 'refs/heads/development'
+        run: |
+          aws s3 sync ./build/ s3://todolistdev --delete
+          aws cloudfront create-invalidation --distribution-id ${{ env.DEV_CLOUDFRONT_ID }} --paths "/*"
+
+      - name: Deploy to SIT
+        if: github.ref == 'refs/heads/testing'
+        run: |
+          aws s3 sync ./build/ s3://todolistsit --delete
+          aws cloudfront create-invalidation --distribution-id ${{ env.SIT_CLOUDFRONT_ID }} --paths "/*"

@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from 'react';
 import TodoItem from './TodoItem';
-import {FixedSizeList as List, ListChildComponentProps} from 'react-window'
 import axios from "axios";
 
 type Todo  = {
@@ -68,35 +67,11 @@ const TodoList: React.FC  = () => {
   );
 };
 
-const Row = ({index,style,data}: {
-  index: number,
-  style: React.CSSProperties,
-  data: {
-    todoList: Todo[],
-    handleDelete: (id: number) => void;
-    updateTodoItem: (id: number) => void;
-    toggleCompletion: (id: number) => void;
-}})  => {
-  const item = data.todoList[index];
-
-  return (
-    <div style={{ ...style, padding: "0 10px", borderBottom: "1px solid #eee" }}>
-      <TodoItem
-        key={item.id}
-        item={item}
-        handleDelete={data.handleDelete}
-        updateTodoItem={data.updateTodoItem}
-        toggleCompletion={data.toggleCompletion}
-      />
-    </div>
-  )
-}
-  
   return(
     <>
       <input type="text" name="todo" value={todo?.title} onChange={handleChange} />
       <button onClick={handleAdd}>Add</button>
-      {/* {todoList.length > 0 && (
+      {todoList.length > 0 && (
         <ul>
           {todoList.map((item) => (
             <TodoItem
@@ -108,17 +83,8 @@ const Row = ({index,style,data}: {
             />
           ))}
         </ul>
-      )} */}
-      <List height={500} itemCount ={todoList.length} itemSize={20} width={400} itemData={
-        {
-          todoList,
-          handleDelete,
-          updateTodoItem,
-          toggleCompletion,
-      } 
-      }>
-        {Row}
-      </List>
+      )}
+      
     </>
   )
 }
