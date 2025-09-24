@@ -31,7 +31,7 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run linting and tests
         if: github.event_name == 'pull_request'
