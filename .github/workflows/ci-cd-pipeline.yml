@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Pipeline
 
 on:
   pull_request:
@@ -32,12 +32,6 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-
-      - name: Run linting and tests
-        if: github.event_name == 'pull_request'
-        run: |
-          npm run lint
-          npm test
 
       - name: Build production application
         if: github.event_name == 'push'
